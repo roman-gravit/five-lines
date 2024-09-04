@@ -226,120 +226,59 @@ class Flux implements Tile {
 	}
 }
 
-class Key1 implements Tile {
-	update(y: number, x: number): void {
-		//
+class KeyConfiguration {
+	constructor(private color: string,
+				private _1: boolean,
+				private removeStrategy: RemoveStrategy) {}
+
+	getColor() { 
+		return this.color;
 	}
+	is1() { 
+		return this._1;
+	}
+	getRemoveStrategy() { 
+		return this.removeStrategy;
+	}
+}
+
+class Key implements Tile {
+
+	constructor(private keyConf: KeyConfiguration) {}
+
+	update(y: number, x: number): void {}
 	moveVertical(dy: number): void {
-		removeLock1();
+		remove(this.keyConf.getRemoveStrategy());
 		moveToTile(playerx, playery + dy);
 	}
 	moveHorizontal(dx: number): void {
-		removeLock1();
+		remove(this.keyConf.getRemoveStrategy());
 		moveToTile(playerx + dx, playery);
 	}
-	isEdible(): boolean {
-		return false;
-	}
+	isEdible(): boolean { return false; }
 	draw(g: CanvasRenderingContext2D, x: number, y: number): void {
-		g.fillStyle = "#ffcc00";
+		g.fillStyle = this.keyConf.getColor();
 		g.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
 	}
-	isAir(): boolean {
-		return false;
-	}
-	isLock1(): boolean {
-		return false;
-	}
-	isLock2(): boolean {
-		return false;
-	}
+	isAir(): boolean { return false; }
+	isLock1(): boolean { return false; }
+	isLock2(): boolean { return false; }
 }
 
-class Key2 implements Tile {
-	update(y: number, x: number): void {
-		//
-	}
-	moveVertical(dy: number): void {
-		removeLock2();
-		moveToTile(playerx, playery + dy);
-	}
-	moveHorizontal(dx: number): void {
-		removeLock2();
-		moveToTile(playerx + dx, playery);
-	}
-	isEdible(): boolean {
-		return false;
-	}
-	draw(g: CanvasRenderingContext2D, x: number, y: number): void {
-		g.fillStyle = "#00ccff";
-		g.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-	}
-	isAir(): boolean {
-		return false;
-	}
-	isLock1(): boolean {
-		return false;
-	}
-	isLock2(): boolean {
-		return false;
-	}
-}
+class Lock implements Tile {
+	constructor(private keyConf: KeyConfiguration) {}
 
-class Lock1 implements Tile {
-	update(y: number, x: number): void {
-		//
-	}
-	moveVertical(dy: number): void {
-		//
-	}
-	moveHorizontal(dx: number): void {
-		//
-	}
-	isEdible(): boolean {
-		return false;
-	}
+	isLock1(): boolean { return this.keyConf.is1(); }
+	isLock2(): boolean { return !this.keyConf.is1(); }
 	draw(g: CanvasRenderingContext2D, x: number, y: number): void {
-		g.fillStyle = "#ffcc00";
+		g.fillStyle = this.keyConf.getColor();
 		g.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
 	}
-	isAir(): boolean {
-		return false;
-	}
-	isLock1(): boolean {
-		return true;
-	}
-	isLock2(): boolean {
-		return false;
-	}
-}
-
-class Lock2 implements Tile {
-	update(y: number, x: number): void {
-		//
-	}
-	moveVertical(dy: number): void {
-		//
-	}
-	moveHorizontal(dx: number): void {
-		//
-	}
-	isEdible(): boolean {
-		return false;
-	}
-	draw(g: CanvasRenderingContext2D, x: number, y: number): void {
-		g.fillStyle = "#00ccff";
-		g.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-	}
-	isAir(): boolean {
-		return false;
-	}
-	isLock1(): boolean {
-		return false;
-	}
-	isLock2(): boolean {
-		return true;
-	}
+	isAir(): boolean { return false; }
+	update(y: number, x: number): void { }
+	moveVertical(dy: number): void { }
+	moveHorizontal(dx: number): void { }
+	isEdible(): boolean { return false; }
 }
 
 class Player implements Tile {
@@ -426,8 +365,6 @@ class Right implements Input {
 }
 
 
-
-
 function transformMap() {
 	map = new Array(rawMap.length);
 	for (let y = 0; y < rawMap.length; y++) {
@@ -437,6 +374,24 @@ function transformMap() {
 		}
 	}
 }
+
+interface RemoveStrategy {
+	check(tile: Tile): boolean;
+}
+class RemoveLock1 implements RemoveStrategy {
+	check(tile: Tile): boolean {
+		return tile.isLock1();
+	}
+}
+
+class RemoveLock2 implements RemoveStrategy {
+	check(tile: Tile): boolean {
+		return tile.isLock2();
+	}
+}
+
+const YELLOW_KEY = new KeyConfiguration("#ffcc00", true, new RemoveLock1());
+const BLUE_KEY = new KeyConfiguration("#00ccff", false, new RemoveLock2());
 
 function transformTile(tile: RawTile): Tile {
 	switch(tile) {
@@ -448,10 +403,10 @@ function transformTile(tile: RawTile): Tile {
 		case RawTile.STONE: return new Stone(new Resting());
 		case RawTile.FALLING_STONE: return new Stone(new Falling());
 		case RawTile.FLUX: return new Flux();
-		case RawTile.KEY1: return new Key1();
-		case RawTile.LOCK1: return new Lock1();
-		case RawTile.KEY2: return new Key2();
-		case RawTile.LOCK2: return new Lock2();
+		case RawTile.KEY1: return new Key(YELLOW_KEY);
+		case RawTile.LOCK1: return new Lock(YELLOW_KEY);
+		case RawTile.KEY2: return new Key(BLUE_KEY);
+		case RawTile.LOCK2: return new Lock(BLUE_KEY);
 		default: assertExhausted(tile);
 	}
 }
@@ -462,20 +417,11 @@ function assertExhausted(x: never): never {
 
 let inputs: Input[] = [];
 
-function removeLock1() {
-	for (let y = 0; y < map.length; y++) {
-		for (let x = 0; x < map[y].length; x++) {
-			if (map[y][x].isLock1()) {
-				map[y][x] = new Air();
-			}
-		}
-	}
-}
 
-function removeLock2() {
+function remove(shouldRemove: RemoveStrategy) {
 	for (let y = 0; y < map.length; y++) {
 		for (let x = 0; x < map[y].length; x++) {
-			if (map[y][x].isLock2()) {
+			if (shouldRemove.check(map[y][x])) {
 				map[y][x] = new Air();
 			}
 		}
@@ -572,3 +518,28 @@ function updateMap() {
 		}
 	}
 }
+
+
+let hat = {
+	name: "Hat",
+	price: 100,
+	getPriceincTax() {
+		return Number(this.price) * 1.2;
+	}
+
+};
+
+import Log from "./test";
+Log(`Hat: ${hat.price}, ${hat.getPriceincTax() }`);
+
+type ThemeParams = {
+	font?: string;
+	color: string;
+}
+type Theme = "dark" | "light";
+type AppTheme = Record<Theme, ThemeParams>;
+
+
+type ThemePartial = Partial<ThemeParams>;
+type ThemeRequired = Required<ThemeParams>;
+type ThemePick = Pick<ThemeParams, "font">;
